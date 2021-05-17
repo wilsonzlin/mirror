@@ -2,6 +2,7 @@ const http = require("http");
 const crypto = require("crypto");
 
 http.createServer((req, res) => {
+  const started = Date.now();
   const params = new URL("http://domain" + req.url).searchParams;
   const delay = +params.get("_delay") || 0;
   const resStatus = +params.get("_status") || 200;
@@ -12,14 +13,16 @@ http.createServer((req, res) => {
   let reqError = undefined;
   const respond = () => {
     const resBody = resBodySize != undefined
-    ? crypto.randomBytes(resBodySize)
-    : JSON.stringify({
-      url: req.url,
-      ip: req.socket.remoteAddress,
-      headers: req.headers,
-      body: reqBody,
-      error: reqError,
-    });
+      ? crypto.randomBytes(resBodySize)
+      : JSON.stringify({
+        method: req.method,
+        url: req.url,
+        ip: req.socket.remoteAddress,
+        transferMs: Date.now() - started,
+        headers: req.headers,
+        body: reqBody,
+        error: reqError,
+      });
     setTimeout(() => {
       res.writeHead(resStatus, {
         ...resHeaders,
