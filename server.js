@@ -1,0 +1,39 @@
+const http = require("http");
+const crypto = require("crypto");
+
+http.createServer((req, res) => {
+  const params = new URL("http://domain" + req.url).searchParams;
+  const delay = +params.get("_delay") || 0;
+  const resStatus = +params.get("_status") || 200;
+  const resHeaders = Object.fromEntries([...params.entries()].filter(([n]) => /^[a-z-]+$/i.test(n)));
+  const resBodySize = params.get("_bodySize");
+
+  let reqBody = "";
+  let reqError = undefined;
+  const respond = () => {
+    const resBody = resBodySize != undefined
+    ? crypto.randomBytes(resBodySize)
+    : JSON.stringify({
+      url: req.url,
+      ip: req.socket.remoteAddress,
+      headers: req.headers,
+      body: reqBody,
+      error: reqError,
+    });
+    setTimeout(() => {
+      res.writeHead(resStatus, {
+        ...resHeaders,
+        "Content-Type": resBodySize != undefined 
+            ? "application/octet-stream"
+            : "application/json",
+      });
+      res.end(resBody);
+    }, delay);
+  };
+  req.on("data", chunk => reqBody += chunk);
+  req.on("end", respond);
+  req.on("error", err => {
+    reqError = err;
+    respond();
+  })
+}).listen(80);
