@@ -4,8 +4,8 @@ const http = require("http");
 const crypto = require("crypto");
 
 http.createServer((req, res) => {
-  const started = Date.now();
-  const params = new URL("http://domain" + req.url).searchParams;
+  const received = new Date();
+  const params = new URL(`http://domain${req.url}`).searchParams;
   const delay = +params.get("_delay") || 0;
   const resStatus = +params.get("_status") || 200;
   const resHeaders = Object.fromEntries([...params.entries()].filter(([n]) => /^[a-z-]+$/i.test(n)));
@@ -14,13 +14,14 @@ http.createServer((req, res) => {
   let reqBody = "";
   let reqError = undefined;
   const respond = () => {
+    console.log(`[${received.toISOString()}] ${req.socket.remoteAddress} ${req.method} ${req.url} ${reqBody.slice(0, 50)} [${reqBody.length}]`);
     const resBody = resBodySize != undefined
       ? crypto.randomBytes(resBodySize)
       : JSON.stringify({
         method: req.method,
         url: req.url,
         ip: req.socket.remoteAddress,
-        transferMs: Date.now() - started,
+        transferMs: Date.now() - received.getTime(),
         headers: req.headers,
         body: reqBody,
         error: reqError,
@@ -28,9 +29,9 @@ http.createServer((req, res) => {
     setTimeout(() => {
       res.writeHead(resStatus, {
         ...resHeaders,
-        "Content-Type": resBodySize != undefined 
-            ? "application/octet-stream"
-            : "application/json",
+        "Content-Type": resBodySize != undefined
+          ? "application/octet-stream"
+          : "application/json",
       });
       res.end(resBody);
     }, delay);
@@ -41,4 +42,4 @@ http.createServer((req, res) => {
     reqError = err;
     respond();
   })
-}).listen(80);
+}).listen(process.env.MIRROR_PORT || 80);
